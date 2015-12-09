@@ -1,34 +1,68 @@
-cmake_minimum_required(VERSION 2.4)
-cmake_policy(SET CMP0004 OLD)
-SET(local_prefix "local_config/local-")
-FIND_PROGRAM(HOSTNAME hostname PATHS $ENV{PATH})
-IF(HOSTNAME)
-	# TODO: hostname does not accept -s on cygwin
-	IF(CYGWIN OR WIN32)
-		SET(hostname_params "")
-	ELSE(CYGWIN OR WIN32)
-		SET(hostname_params "-s")
-	ENDIF(CYGWIN OR WIN32)
-	
-	EXEC_PROGRAM(${HOSTNAME} ARGS ${hostname_params} OUTPUT_VARIABLE host)
+cmake_minimum_required(VERSION 2.8.3)
+project(csm)
 
-	SET(local "${local_prefix}${host}.cmake")
-	
-	SET(extension "$ENV{CSM_CONF}")
-	IF(extension)
-		SET(local "${local_prefix}${host}-${extension}.cmake")
-	ENDIF(extension)
-	
-	IF(EXISTS ${local})
-		MESSAGE(STATUS "Including local configuration ${local}.")
-		INCLUDE(${local})
-	ELSE(EXISTS ${local})
-		MESSAGE(STATUS "Create a file named '${local}' if you want to add options.")
-	ENDIF(EXISTS ${local})
-ELSE(HOSTNAME)
-	MESSAGE(STATUS "Program `hostname` not found. (don't worry)")
-ENDIF(HOSTNAME)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-ENABLE_TESTING()
-SUBDIRS(sm)
+#SET(CMAKE_BUILD_TYPE Debug)
+SET(CMAKE_BUILD_TYPE RelWithDebInfo)
+
+find_package(catkin REQUIRED COMPONENTS roslib roscpp cmake_modules)
+
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(src)
+
+SET(CSM_SRC 
+  src/csm/laser_data.cpp
+  src/csm/math_utils.cpp
+  src/csm/math_utils_gsl.cpp
+  src/csm/utils.cpp
+  src/csm/logging.cpp
+  src/csm/sm_options.cpp
+  src/csm/orientation.cpp
+  src/csm/clustering.cpp)
+
+SET(EGSL_SRC
+	src/egsl/egsl.cpp
+	src/egsl/egsl_conversions.cpp
+	src/egsl/egsl_misc.cpp
+	src/egsl/egsl_ops.cpp)
+
+SET(GPC_SRC
+	src/gpc/gpc.cpp
+	src/gpc/gpc_utils.cpp)
+
+SET(ICP_SRC
+  src/icp/icp.cpp
+  src/icp/icp_corr_dumb.cpp
+  src/icp/icp_corr_tricks.cpp
+  src/icp/icp_covariance.cpp
+  src/icp/icp_debug.cpp
+  src/icp/icp_loop.cpp
+  src/icp/icp_outliers.cpp)
+
+SET(OPTIONS_SRC  
+   src/options/options.cpp
+   src/options/options_interface.cpp)
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES csm
+  CATKIN_DEPENDS roslib roscpp
+)
+
+include_directories(
+  include
+)
+
+add_library(csm
+	${CSM_SRC}
+	${EGSL_SRC} 
+	${GPC_SRC}
+	${ICP_SRC}
+	${OPTIONS_SRC}
+)
